@@ -56,6 +56,96 @@ app.use(passport.session());
 require('./config/passportConfig.js')(passport);
 
 
+// get user
+app.get('/get-user', (req, res, next) => {
+  if(!req.user) {
+    return res.json({ success: false });
+  }
+  res.json({
+    success: true,
+    user: req.user
+  });
+});
+
+/*
+app.post('/register', (req, res, next) => {
+  User.findOne({ username: req.body.username }, async (err, doc) => {
+    if(err) throw err;
+    if(doc) return res.json({
+      success: false,
+      error: 'User already exists'
+    });
+    const hash = await bcrypt.hash(req.body.password, 10);
+    const newUser = new User({
+      username: req.body.username,
+      password: hash
+    });
+    await newUser.save();
+    res.json({ message: 'New user created' });
+  });
+});*/
+
+// register
+app.post('/register', async (req, res, next) => {
+  try {
+    const user = await User.findOne({ username: req.body.username });
+    if(user) return res.json({
+      success: false,
+      error: 'User already exists'
+    });
+    const hash = await bcrypt.hash(req.body.password, 10);
+    const newUser = new User({
+      username: req.body.username,
+      password: hash
+    });
+    await newUser.save();
+    res.json({
+      success: true
+    });
+  } catch(e) {
+    next(e);
+  }
+});
+
+// login
+app.post('/login', (req, res, next) => {
+  passport.authenticate('local', (err, user, info) => {
+    if(err) return next(err);
+    if(!user) return res.json({
+      success: false,
+      error: 'Incorrect username and password combination'
+    });
+    req.login(user, err => {
+      if(err) return next(err);
+      res.json({
+        success: true,
+        user: req.user
+      });
+    });
+  })(req, res, next);
+});
+
+// logout
+app.get('/logout', (req, res, next) => {
+  if(req.user) {
+    req.logout();
+    res.json({ success: true });
+  } else {
+    res.json({ success: false });
+  }
+});
+
+// get exercises
+app.get('/get-exercises', (req, res, next) => {
+  Exercise.find({ owner: req.user.id })
+    .then(docs => res.json({
+      success: true,
+      exercises: docs
+    }))
+    .catch(e => next(e))
+});
+
+// new exercise
 app.post('/new-exercise', (req, res, next) => {
   const pressUps = new Exercise({
     name: req.body.name,
@@ -74,6 +164,7 @@ app.post('/new-exercise', (req, res, next) => {
     .catch(e => next(e));
 });
 
+// edit exercise
 app.post('/edit-exercise/:exerciseId', (req, res, next) => {
   Exercise.findByIdAndUpdate(req.params.exerciseId, {
     name: req.body.name,
@@ -87,6 +178,43 @@ app.post('/edit-exercise/:exerciseId', (req, res, next) => {
     .catch(e => next(e))
 });
 
+// delete exercise
+app.delete('/exercise/:exerciseId', (req, res, next) => {
+  Exercise.findByIdAndDelete(req.params.exerciseId)
+    .then(doc => {
+      const workouts = req.user.workouts;
+      workouts.forEach(workout => {
+        for(let i = 0; i < workout.exercises.length; i++) {
+          if(workout.exercises[i].exercise == req.params.exerciseId) {
+            workout.exercises.splice(i, 1);
+          }
+        }
+      })
+      User.findByIdAndUpdate(req.user.id, { workouts })
+        .then(result => res.json({
+          success: true,
+          workouts: req.user.workouts,
+          exercises: req.user.exercises
+        }));
+    })
+    .catch(e => next(e));
+});
+
+// get workouts
+app.get('/get-workouts', (req, res, next) => {
+  User.findById(req.user.id)
+    .populate({
+      path: 'workouts.exercises.exercise',
+      model: 'Exercise'
+    })
+    .then(doc => res.json({
+      success: true,
+      workouts: doc.workouts
+    }))
+    .catch(e => next(e))
+});
+
+// new workout
 app.post('/new-workout', (req, res, next) => {
   const currentUser = req.user;
 
@@ -105,28 +233,41 @@ app.post('/new-workout', (req, res, next) => {
     .catch(e => next(e))
 });
 
-app.get('/get-workouts', (req, res, next) => {
-  User.findById(req.user.id)
-    .populate({
-      path: 'workouts.exercises.exercise',
-      model: 'Exercise'
-    })
+// edit workout
+app.post('/edit-workout/:workoutId', (req, res, next) => {
+  const workouts = req.user.workouts;
+  const workout = workouts.find(item => item._id == req.params.workoutId);
+  workout.name = req.body.name;
+  workout.duration = req.body.duration;
+  workout.type = req.body.type;
+  User.findByIdAndUpdate(req.user._id, { workouts })
     .then(doc => res.json({
       success: true,
-      workouts: doc.workouts
+      workouts: req.user.workouts
     }))
     .catch(e => next(e))
 });
 
-app.get('/get-exercises', (req, res, next) => {
-  Exercise.find({ owner: req.user.id })
-    .then(docs => res.json({
+// delete workout
+app.delete('/workout/:workoutId', (req, res, next) => {
+  // get the workout to be removed
+  const deadWorkout = req.user.workouts.find(workout => workout._id == req.params.workoutId);
+  // get the index in the users workouts array of the workout to be removed
+  const index = req.user.workouts.indexOf(deadWorkout);
+  // get a copy of the workouts array for the logged in user
+  const workoutsArr = req.user.workouts;
+  // remove the workout
+  workoutsArr.splice(index, 1);
+  // update user, set workouts as updated workouts array
+  User.findByIdAndUpdate(req.user.id, { workouts: workoutsArr })
+    .then(doc => res.json({
       success: true,
-      exercises: docs
+      workouts: req.user.workouts
     }))
     .catch(e => next(e))
 });
 
+// add exercise to workout
 app.post('/add-to-workout/:workoutId', (req, res, next) => {
   // get the workout to be added to
   const currentWorkout = req.user.workouts.find(workout => workout._id == req.params.workoutId);
@@ -149,60 +290,7 @@ app.post('/add-to-workout/:workoutId', (req, res, next) => {
     .catch(e => next(e))
 });
 
-app.delete('/workout/:workoutId', (req, res, next) => {
-  // get the workout to be removed
-  const deadWorkout = req.user.workouts.find(workout => workout._id == req.params.workoutId);
-  // get the index in the users workouts array of the workout to be removed
-  const index = req.user.workouts.indexOf(deadWorkout);
-  // get a copy of the workouts array for the logged in user
-  const workoutsArr = req.user.workouts;
-  // remove the workout
-  workoutsArr.splice(index, 1);
-  // update user, set workouts as updated workouts array
-  User.findByIdAndUpdate(req.user.id, { workouts: workoutsArr })
-    .then(doc => res.json({
-      success: true,
-      workouts: req.user.workouts
-    }))
-    .catch(e => next(e))
-});
-
-app.delete('/workout-exercise/:workoutExerciseId/:workoutId', (req, res, next) => {
-  const workouts = req.user.workouts;
-  const workout = workouts.find(item => item._id == req.params.workoutId);
-  const workoutIndex = workouts.indexOf(workout);
-  const workoutExercise = workout.exercises.find(item => item._id == req.params.workoutExerciseId);
-  const exerciseIndex = workout.exercises.indexOf(workoutExercise);
-  workouts[workoutIndex].exercises.splice(exerciseIndex, 1);
-  User.findByIdAndUpdate(req.user.id, { workouts })
-    .then(doc => res.json({
-      success: true,
-      workouts: req.user.workouts
-    }))
-    .catch(e => next(e))
-});
-
-app.delete('/exercise/:exerciseId', (req, res, next) => {
-  Exercise.findByIdAndDelete(req.params.exerciseId)
-    .then(doc => {
-      const workouts = req.user.workouts;
-      workouts.forEach(workout => {
-        for(let i = 0; i < workout.exercises.length; i++) {
-          if(workout.exercises[i].exercise == req.params.exerciseId) {
-            workout.exercises.splice(i, 1);
-          }
-        }
-      })
-      User.findByIdAndUpdate(req.user.id, { workouts })
-        .then(result => res.json({
-          success: true,
-          workouts: req.user.workouts,
-          exercises: req.user.exercises
-        }));
-    })
-    .catch(e => next(e));
-});
-
+// edit workout exercise
 app.post('/edit-workout-exercise/:workoutId/:workoutExerciseId', (req, res, next) => {
   const workouts = req.user.workouts;
   const workout = workouts.find(item => item._id == req.params.workoutId);
@@ -218,94 +306,20 @@ app.post('/edit-workout-exercise/:workoutId/:workoutExerciseId', (req, res, next
     .catch(e => next(e))
 });
 
-app.post('/edit-workout/:workoutId', (req, res, next) => {
+// remove exercise from workout
+app.delete('/workout-exercise/:workoutExerciseId/:workoutId', (req, res, next) => {
   const workouts = req.user.workouts;
   const workout = workouts.find(item => item._id == req.params.workoutId);
-  workout.name = req.body.name;
-  workout.duration = req.body.duration;
-  workout.type = req.body.type;
-  User.findByIdAndUpdate(req.user._id, { workouts })
+  const workoutIndex = workouts.indexOf(workout);
+  const workoutExercise = workout.exercises.find(item => item._id == req.params.workoutExerciseId);
+  const exerciseIndex = workout.exercises.indexOf(workoutExercise);
+  workouts[workoutIndex].exercises.splice(exerciseIndex, 1);
+  User.findByIdAndUpdate(req.user.id, { workouts })
     .then(doc => res.json({
       success: true,
       workouts: req.user.workouts
     }))
     .catch(e => next(e))
-});
-
-// auth routes
-/*
-app.post('/register', (req, res, next) => {
-  User.findOne({ username: req.body.username }, async (err, doc) => {
-    if(err) throw err;
-    if(doc) return res.json({
-      success: false,
-      error: 'User already exists'
-    });
-    const hash = await bcrypt.hash(req.body.password, 10);
-    const newUser = new User({
-      username: req.body.username,
-      password: hash
-    });
-    await newUser.save();
-    res.json({ message: 'New user created' });
-  });
-});*/
-
-app.post('/register', async (req, res, next) => {
-  try {
-    const user = await User.findOne({ username: req.body.username });
-    if(user) return res.json({
-      success: false,
-      error: 'User already exists'
-    });
-    const hash = await bcrypt.hash(req.body.password, 10);
-    const newUser = new User({
-      username: req.body.username,
-      password: hash
-    });
-    await newUser.save();
-    res.json({
-      success: true
-    });
-  } catch(e) {
-    next(e);
-  }
-});
-
-app.post('/login', (req, res, next) => {
-  passport.authenticate('local', (err, user, info) => {
-    if(err) return next(err);
-    if(!user) return res.json({
-      success: false,
-      error: 'Incorrect username and password combination'
-    });
-    req.login(user, err => {
-      if(err) return next(err);
-      res.json({
-        success: true,
-        user: req.user
-      });
-    });
-  })(req, res, next);
-});
-
-app.get('/logout', (req, res, next) => {
-  if(req.user) {
-    req.logout();
-    res.json({ success: true });
-  } else {
-    res.json({ success: false });
-  }
-});
-
-app.get('/get-user', (req, res, next) => {
-  if(!req.user) {
-    return res.json({ success: false });
-  }
-  res.json({
-    success: true,
-    user: req.user
-  });
 });
 
 // error handler
