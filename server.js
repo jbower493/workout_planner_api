@@ -13,6 +13,10 @@ const WorkoutExercise = require('./models/WorkoutExercise');
 const Workout = require('./models/Workout.js');
 const User = require('./models/User.js');
 
+// import helpers
+const { invalidUsername, invalidPassword } = require('./validation/authValidators.js');
+const { invalidExercise, invalidWorkoutExercise } = require('./validation/exercisesValidators.js');
+
 const app = express();
 
 const PORT = process.env.PORT;
@@ -87,6 +91,18 @@ app.post('/register', (req, res, next) => {
 
 // register
 app.post('/register', async (req, res, next) => {
+  if(invalidUsername(req.body.username)) {
+    return res.json({
+      success: false,
+      error: invalidUsername(req.body.username)
+    })
+  }
+  if(invalidPassword(req.body.password)) {
+    return res.json({
+      success: false,
+      error: invalidPassword(req.body.password)
+    })
+  }
   try {
     const user = await User.findOne({ username: req.body.username });
     if(user) return res.json({
