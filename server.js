@@ -172,10 +172,11 @@ app.post('/new-exercise', (req, res, next) => {
 
   pressUps.save()
     .then(doc => {
-      res.json({
-        success: true,
-        exercises: req.user.exercises
-      });
+      Exercise.find({ owner: req.user.id })
+        .then(docs => res.json({
+          success: true,
+          exercises: docs
+        }));
     })
     .catch(e => next(e));
 });
@@ -187,10 +188,13 @@ app.post('/edit-exercise/:exerciseId', (req, res, next) => {
     description: req.body.description,
     muscleGroup: req.body.muscleGroup
   })
-    .then(doc => res.json({
-      success: true,
-      exercises: req.user.exercises
-    }))
+    .then(doc => {
+      Exercise.find({ owner: req.user.id })
+        .then(docs => res.json({
+          success: true,
+          exercises: docs
+        }));
+    })
     .catch(e => next(e))
 });
 
@@ -207,11 +211,14 @@ app.delete('/exercise/:exerciseId', (req, res, next) => {
         }
       })
       User.findByIdAndUpdate(req.user.id, { workouts })
-        .then(result => res.json({
-          success: true,
-          workouts: req.user.workouts,
-          exercises: req.user.exercises
-        }));
+        .then(result => {
+          Exercise.find({ owner: req.user.id })
+            .then(docs => res.json({
+              success: true,
+              exercises: docs,
+              workouts: req.user.workouts
+            }));
+        });
     })
     .catch(e => next(e));
 });
