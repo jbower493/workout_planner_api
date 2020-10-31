@@ -249,10 +249,17 @@ app.post('/new-workout', (req, res, next) => {
 
   currentUser.workouts.push(workout);
   currentUser.save()
-    .then(doc => res.json({
-      success: true,
-      workouts: req.user.workouts
-    }))
+    .then(doc => {
+      User.findById(req.user.id)
+        .populate({
+          path: 'workouts.exercises.exercise',
+          model: 'Exercise'
+        })
+        .then(doc => res.json({
+          success: true,
+          workouts: doc.workouts
+        }))
+    })
     .catch(e => next(e))
 });
 
@@ -264,10 +271,17 @@ app.post('/edit-workout/:workoutId', (req, res, next) => {
   workout.duration = req.body.duration;
   workout.type = req.body.type;
   User.findByIdAndUpdate(req.user._id, { workouts })
-    .then(doc => res.json({
-      success: true,
-      workouts: req.user.workouts
-    }))
+    .then(result => {
+      User.findById(req.user.id)
+        .populate({
+          path: 'workouts.exercises.exercise',
+          model: 'Exercise'
+        })
+        .then(doc => res.json({
+          success: true,
+          workouts: doc.workouts
+        }))
+    })
     .catch(e => next(e))
 });
 
@@ -283,10 +297,17 @@ app.delete('/workout/:workoutId', (req, res, next) => {
   workoutsArr.splice(index, 1);
   // update user, set workouts as updated workouts array
   User.findByIdAndUpdate(req.user.id, { workouts: workoutsArr })
-    .then(doc => res.json({
-      success: true,
-      workouts: req.user.workouts
-    }))
+    .then(result => {
+      User.findById(req.user.id)
+        .populate({
+          path: 'workouts.exercises.exercise',
+          model: 'Exercise'
+        })
+        .then(doc => res.json({
+          success: true,
+          workouts: doc.workouts
+        }))
+    })
     .catch(e => next(e))
 });
 
@@ -306,10 +327,17 @@ app.post('/add-to-workout/:workoutId', (req, res, next) => {
   workoutsArr[index] = currentWorkout;
   // update user, set workouts as updated workouts array
   User.findByIdAndUpdate(req.user.id, { workouts: workoutsArr })
-    .then(doc => res.json({
-      success: true,
-      workouts: req.user.workouts
-    }))
+    .then(result => {
+      User.findById(req.user.id)
+        .populate({
+          path: 'workouts.exercises.exercise',
+          model: 'Exercise'
+        })
+        .then(doc => res.json({
+          success: true,
+          workouts: doc.workouts
+        }))
+    })
     .catch(e => next(e))
 });
 
@@ -322,10 +350,17 @@ app.post('/edit-workout-exercise/:workoutId/:workoutExerciseId', (req, res, next
   workoutExercise.sets = req.body.sets;
   workoutExercise.weight = req.body.weight;
   User.findByIdAndUpdate(req.user._id, { workouts })
-    .then(doc => res.json({
-      success: true,
-      workouts: req.user.workouts
-    }))
+    .then(result => {
+      User.findById(req.user.id)
+        .populate({
+          path: 'workouts.exercises.exercise',
+          model: 'Exercise'
+        })
+        .then(doc => res.json({
+          success: true,
+          workouts: doc.workouts
+        }))
+    })
     .catch(e => next(e))
 });
 
@@ -338,10 +373,17 @@ app.delete('/workout-exercise/:workoutExerciseId/:workoutId', (req, res, next) =
   const exerciseIndex = workout.exercises.indexOf(workoutExercise);
   workouts[workoutIndex].exercises.splice(exerciseIndex, 1);
   User.findByIdAndUpdate(req.user.id, { workouts })
-    .then(doc => res.json({
-      success: true,
-      workouts: req.user.workouts
-    }))
+    .then(result => {
+      User.findById(req.user.id)
+        .populate({
+          path: 'workouts.exercises.exercise',
+          model: 'Exercise'
+        })
+        .then(doc => res.json({
+          success: true,
+          workouts: doc.workouts
+        }))
+    })
     .catch(e => next(e))
 });
 
