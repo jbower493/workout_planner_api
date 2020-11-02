@@ -15,7 +15,7 @@ const User = require('./models/User.js');
 
 // import helpers
 const { invalidUsername, invalidPassword } = require('./validation/authValidators.js');
-const { invalidExercise } = require('./validation/exercisesValidators.js');
+const { invalidExercise, invalidWorkout, invalidWorkoutExercise } = require('./validation/mainValidators.js');
 
 const app = express();
 
@@ -152,12 +152,11 @@ app.post('/new-exercise', (req, res, next) => {
     owner: req.user.id
   });
 
-  const testObject = 'hello'
-
-  if(invalidExercise(testObject)) {
-    console.log('failed validation')
-  } else {
-    console.log('passed validation')
+  if(invalidExercise(pressUps)) {
+    return res.json({
+      success: false,
+      error: invalidExercise(pressUps)
+    });
   }
 
   pressUps.save()
@@ -173,11 +172,21 @@ app.post('/new-exercise', (req, res, next) => {
 
 // edit exercise
 app.post('/edit-exercise/:exerciseId', (req, res, next) => {
-  Exercise.findByIdAndUpdate(req.params.exerciseId, {
-    name: req.body.name,
-    description: req.body.description,
-    muscleGroup: req.body.muscleGroup
-  })
+  const { name, description, muscleGroup } = req.body;
+  const newExercise = {
+    name,
+    description,
+    muscleGroup
+  };
+
+  if(invalidExercise(newExercise)) {
+    return res.json({
+      success: false,
+      error: invalidExercise(newExercise)
+    });
+  }
+
+  Exercise.findByIdAndUpdate(req.params.exerciseId, newExercise)
     .then(doc => {
       Exercise.find({ owner: req.user.id })
         .then(docs => res.json({
@@ -237,6 +246,13 @@ app.post('/new-workout', (req, res, next) => {
     type: req.body.type
   });
 
+  if(invalidWorkout(workout)) {
+    return res.json({
+      success: false,
+      error: invalidWorkout(workout)
+    });
+  }
+
   currentUser.workouts.push(workout);
   currentUser.save()
     .then(doc => {
@@ -255,6 +271,19 @@ app.post('/new-workout', (req, res, next) => {
 
 // edit workout
 app.post('/edit-workout/:workoutId', (req, res, next) => {
+  // validation
+  const edited = {
+    name: req.body.name,
+    duration: req.body.duration,
+    type: req.body.type
+  };
+  if(invalidWorkout(edited)) {
+    return res.json({
+      success: false,
+      error: invalidWorkout(edited)
+    });
+  }
+
   const workouts = req.user.workouts;
   const workout = workouts.find(item => item._id == req.params.workoutId);
   workout.name = req.body.name;
@@ -303,10 +332,25 @@ app.delete('/workout/:workoutId', (req, res, next) => {
 
 // add exercise to workout
 app.post('/add-to-workout/:workoutId', (req, res, next) => {
-  // get the workout to be added to
-  const currentWorkout = req.user.workouts.find(workout => workout._id == req.params.workoutId);
   // create a new workout exercise
   const nWE = new WorkoutExercise(req.body);
+
+  // validate new workout exercise
+  if(invalidWorkoutExercise(nWE)) {
+    return res.json({
+      success: false,
+      error: invalidWorkoutExercise(nWE)
+    });
+  }
+  if(!nWE.exercise) {
+    return res.json({
+      success: false,
+      error: 'Please select an exercise to add'
+    });
+  }
+
+  // get the workout to be added to
+  const currentWorkout = req.user.workouts.find(workout => workout._id == req.params.workoutId);
   // push the new exercise onto that workout's exercises array
   currentWorkout.exercises.push(nWE);
   // get the index in the users workouts array of the current workout
@@ -333,6 +377,15 @@ app.post('/add-to-workout/:workoutId', (req, res, next) => {
 
 // edit workout exercise
 app.post('/edit-workout-exercise/:workoutId/:workoutExerciseId', (req, res, next) => {
+  // validation
+  const checker = req.body;
+  if(invalidWorkoutExercise(checker)) {
+    return res.json({
+      success: false,
+      error: invalidWorkoutExercise(checker)
+    });
+  }
+
   const workouts = req.user.workouts;
   const workout = workouts.find(item => item._id == req.params.workoutId);
   const workoutExercise = workout.exercises.find(item => item._id == req.params.workoutExerciseId);

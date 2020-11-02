@@ -1,14 +1,11 @@
-import Exercise from './models/Exercise';
 const { invalidExercise } = require('./validation/exercisesValidators');
-//const Exercise = require('./models/Exercise');
 
 
 const exercise = {
-  name: 'some exercise',
-  description: 'some exercise description',
-  muscleGroup: 'chest',
-  owner: 'sideshow bob'
+  name: 'sjdhf jfkdleis ejdhcifj rnc',
+  description: 'head',
+  muscleGroup: 'hello my'
 };
 
-console.log(exercise)
+console.log(exercise.description.length)
 console.log(invalidExercise(exercise))
