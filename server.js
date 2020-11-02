@@ -15,7 +15,7 @@ const User = require('./models/User.js');
 
 // import helpers
 const { invalidUsername, invalidPassword } = require('./validation/authValidators.js');
-const { invalidExercise, invalidWorkoutExercise } = require('./validation/exercisesValidators.js');
+const { invalidExercise } = require('./validation/exercisesValidators.js');
 
 const app = express();
 
@@ -70,24 +70,6 @@ app.get('/get-user', (req, res, next) => {
     user: req.user
   });
 });
-
-/*
-app.post('/register', (req, res, next) => {
-  User.findOne({ username: req.body.username }, async (err, doc) => {
-    if(err) throw err;
-    if(doc) return res.json({
-      success: false,
-      error: 'User already exists'
-    });
-    const hash = await bcrypt.hash(req.body.password, 10);
-    const newUser = new User({
-      username: req.body.username,
-      password: hash
-    });
-    await newUser.save();
-    res.json({ message: 'New user created' });
-  });
-});*/
 
 // register
 app.post('/register', async (req, res, next) => {
@@ -169,6 +151,14 @@ app.post('/new-exercise', (req, res, next) => {
     muscleGroup: req.body.muscleGroup,
     owner: req.user.id
   });
+
+  const testObject = 'hello'
+
+  if(invalidExercise(testObject)) {
+    console.log('failed validation')
+  } else {
+    console.log('passed validation')
+  }
 
   pressUps.save()
     .then(doc => {
