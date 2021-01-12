@@ -49,7 +49,7 @@ app.use(session({
 
 app.use(cors({
   origin: 'http://localhost:3000',
-  //origin: 'https://jbwebsites.work',
+  //origin: 'https://jbwebsites.work/workout-planner',
   credentials: true
 }));
 app.use(express.json());
